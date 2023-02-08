@@ -152,6 +152,12 @@ struct AnyBitPatternTest {
   b: u16,
 }
 
+#[derive(Clone, Copy, CheckedBitPattern)]
+#[repr(C, align(8))]
+struct CheckedBitPatternAlignedStruct {
+  a: u16,
+}
+
 /// ```compile_fail
 /// use bytemuck::{Pod, Zeroable};
 ///
@@ -246,6 +252,12 @@ fn checkedbitpattern_try_pod_read_unaligned() {
     CheckedBitPatternEnumWithValues,
   >(&pod);
   assert!(res.is_err());
+}
+
+#[test]
+fn checkedbitpattern_aligned_struct() {
+  let pod = [0u8; 8];
+  bytemuck::checked::pod_read_unaligned::<CheckedBitPatternAlignedStruct>(&pod);
 }
 
 #[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
