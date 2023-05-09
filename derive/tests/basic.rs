@@ -160,6 +160,39 @@ struct AnyBitPatternTest<A: AnyBitPattern, B: AnyBitPattern> {
   b: B,
 }
 
+#[derive(Clone, Copy, CheckedBitPattern)]
+#[repr(C, align(8))]
+struct CheckedBitPatternAlignedStruct {
+  a: u16,
+}
+
+#[derive(Debug, Clone, Copy, CheckedBitPattern, PartialEq, Eq)]
+#[repr(C)]
+enum CheckedBitPatternCDefaultDiscriminantEnumWithFields {
+  A(u64),
+  B { c: u64 },
+}
+
+#[derive(Debug, Clone, Copy, CheckedBitPattern, PartialEq, Eq)]
+#[repr(C, u8)]
+enum CheckedBitPatternCEnumWithFields {
+  A(u32),
+  B { c: u32 },
+}
+
+#[derive(Debug, Clone, Copy, CheckedBitPattern, PartialEq, Eq)]
+#[repr(u8)]
+enum CheckedBitPatternIntEnumWithFields {
+  A(u8),
+  B { c: u32 },
+}
+
+#[derive(Debug, Clone, Copy, CheckedBitPattern, PartialEq, Eq)]
+#[repr(transparent)]
+enum CheckedBitPatternTransparentEnumWithFields {
+  A { b: u32 },
+}
+
 /// ```compile_fail
 /// use bytemuck::{Pod, Zeroable};
 ///
@@ -276,6 +309,83 @@ fn checkedbitpattern_try_pod_read_unaligned() {
     CheckedBitPatternEnumWithValues,
   >(&pod);
   assert!(res.is_err());
+}
+
+#[test]
+fn checkedbitpattern_aligned_struct() {
+  let pod = [0u8; 8];
+  bytemuck::checked::pod_read_unaligned::<CheckedBitPatternAlignedStruct>(&pod);
+}
+
+#[test]
+fn checkedbitpattern_c_default_discriminant_enum_with_fields() {
+  let pod = [
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xcc, 0x55, 0x55, 0x55,
+    0x55, 0x55, 0x55, 0xcc,
+  ];
+  let value = bytemuck::checked::pod_read_unaligned::<
+    CheckedBitPatternCDefaultDiscriminantEnumWithFields,
+  >(&pod);
+  assert_eq!(
+    value,
+    CheckedBitPatternCDefaultDiscriminantEnumWithFields::A(0xcc555555555555cc)
+  );
+
+  let pod = [
+    0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xcc, 0x55, 0x55, 0x55,
+    0x55, 0x55, 0x55, 0xcc,
+  ];
+  let value = bytemuck::checked::pod_read_unaligned::<
+    CheckedBitPatternCDefaultDiscriminantEnumWithFields,
+  >(&pod);
+  assert_eq!(
+    value,
+    CheckedBitPatternCDefaultDiscriminantEnumWithFields::B {
+      c: 0xcc555555555555cc
+    }
+  );
+}
+
+#[test]
+fn checkedbitpattern_c_enum_with_fields() {
+  let pod = [0x00, 0x00, 0x00, 0x00, 0xcc, 0x55, 0x55, 0xcc];
+  let value = bytemuck::checked::pod_read_unaligned::<
+    CheckedBitPatternCEnumWithFields,
+  >(&pod);
+  assert_eq!(value, CheckedBitPatternCEnumWithFields::A(0xcc5555cc));
+
+  let pod = [0x01, 0x00, 0x00, 0x00, 0xcc, 0x55, 0x55, 0xcc];
+  let value = bytemuck::checked::pod_read_unaligned::<
+    CheckedBitPatternCEnumWithFields,
+  >(&pod);
+  assert_eq!(value, CheckedBitPatternCEnumWithFields::B { c: 0xcc5555cc });
+}
+
+#[test]
+fn checkedbitpattern_int_enum_with_fields() {
+  let pod = [0x00, 0x55, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00];
+  let value = bytemuck::checked::pod_read_unaligned::<
+    CheckedBitPatternIntEnumWithFields,
+  >(&pod);
+  assert_eq!(value, CheckedBitPatternIntEnumWithFields::A(0x55));
+
+  let pod = [0x01, 0x00, 0x00, 0x00, 0xcc, 0x55, 0x55, 0xcc];
+  let value = bytemuck::checked::pod_read_unaligned::<
+    CheckedBitPatternIntEnumWithFields,
+  >(&pod);
+  assert_eq!(value, CheckedBitPatternIntEnumWithFields::B { c: 0xcc5555cc });
+}
+
+#[test]
+fn checkedbitpattern_transparent_enum_with_fields() {
+  let pod = [0xcc, 0x55, 0x55, 0xcc];
+  let value = bytemuck::checked::pod_read_unaligned::<
+    CheckedBitPatternTransparentEnumWithFields,
+  >(&pod);
+  assert_eq!(
+    value,
+    CheckedBitPatternTransparentEnumWithFields::A { b: 0xcc5555cc }
+  );
 }
 
 #[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
